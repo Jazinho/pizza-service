@@ -10,7 +10,7 @@ public class PizzaServiceImpl implements PizzaService {
 
     @Override
     public Collection<PizzaDTO> getPizzas() {
-        return null;
+        return Collections.emptyList();
     }
 
     @Override

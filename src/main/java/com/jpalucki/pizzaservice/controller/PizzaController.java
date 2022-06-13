@@ -58,10 +58,9 @@ public class PizzaController {
         @ApiResponse(responseCode = "404", description = "Not found."),
         @ApiResponse(responseCode = "422", description = "Unprocessable Entity.")
     })
-    @PutMapping("/{pizza_id}")
+    @PutMapping("/{pizzaId}")
     public void updatePizza(@PathVariable Long pizzaId, @RequestBody PizzaDTO pizzaDTO, HttpServletResponse response) {
         pizzaService.updatePizza(pizzaDTO);
-        response.setStatus(HttpStatus.NO_CONTENT.value());
     }
 
     @Operation(summary = "Delete pizza.")
@@ -69,7 +68,7 @@ public class PizzaController {
         @ApiResponse(responseCode = "200", description = "OK."),
         @ApiResponse(responseCode = "404", description = "Not found.")
     })
-    @DeleteMapping("/{pizza_id}")
+    @DeleteMapping("/{pizzaId}")
     public void deletePizza(@PathVariable Long pizzaId, HttpServletResponse response) {
         pizzaService.deletePizza(pizzaId);
     }

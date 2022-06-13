@@ -1,13 +1,19 @@
 package com.jpalucki.pizzaservice.repository.entity;
 
+import lombok.*;
+
 import javax.persistence.*;
 import java.util.*;
 
 @Entity
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Table(name = "pizza")
 public class PizzaEntity {
 
     @Id
-    private Integer id;
+    private Long id;
 
     private String name;
 
@@ -18,5 +24,5 @@ public class PizzaEntity {
         name = "pizza_ingredient",
         joinColumns = @JoinColumn(name = "pizza_id"),
         inverseJoinColumns = @JoinColumn(name = "ingredient_id"))
-    private List<Ingredient> ingredients;
+    private List<IngredientEntity> ingredients;
 }
