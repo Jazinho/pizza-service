@@ -88,7 +88,7 @@ public class PizzaControllerTests {
     }
 
     @Test
-    public void createPizza() throws Exception {
+    public void createPizza_created() throws Exception {
         //given
         PizzaDTO pizzaToBeCreated = new PizzaDTO(null, "New Pizza", 50, Lists.list(new IngredientDTO(1L, "Cheese")));
 
@@ -310,7 +310,7 @@ public class PizzaControllerTests {
     }
 
     @Test
-    public void deletePizza() throws Exception {
+    public void deletePizza_ok() throws Exception {
         //given
         List<PizzaEntity> pizzas = setupDB();
         Long idToDelete = pizzas.get(0).getId();
@@ -321,6 +321,23 @@ public class PizzaControllerTests {
         // then
         mockMvc.perform(builder)
             .andExpect(MockMvcResultMatchers.status().isOk())
+            .andReturn();
+
+        assertFalse(pizzaRepository.existsById(idToDelete));
+        assertEquals(pizzaIngredientRepository.findAllByPizzaId(idToDelete).size(), 0);
+    }
+
+    @Test
+    public void deletePizza_nonExisting() throws Exception {
+        //given
+        Long idToDelete = 1L;
+
+        // when
+        MockHttpServletRequestBuilder builder = MockMvcRequestBuilders.delete("/pizzas/" + idToDelete);
+
+        // then
+        mockMvc.perform(builder)
+            .andExpect(MockMvcResultMatchers.status().isNotFound())
             .andReturn();
 
         assertFalse(pizzaRepository.existsById(idToDelete));

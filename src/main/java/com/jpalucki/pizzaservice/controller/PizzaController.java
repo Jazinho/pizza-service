@@ -1,5 +1,6 @@
 package com.jpalucki.pizzaservice.controller;
 
+import com.jpalucki.pizzaservice.config.exception.*;
 import com.jpalucki.pizzaservice.service.*;
 import com.jpalucki.pizzaservice.service.dto.*;
 import io.swagger.v3.oas.annotations.*;
@@ -39,7 +40,8 @@ public class PizzaController {
         @ApiResponse(responseCode = "422", description = "Unprocessable Entity.")
     })
     @PostMapping
-    public PizzaDTO createPizza(@RequestBody PizzaDTO pizzaDTO, HttpServletResponse response) throws Exception {
+    public PizzaDTO createPizza(@RequestBody PizzaDTO pizzaDTO, HttpServletResponse response)
+        throws NotFoundException, ValidationException {
         PizzaDTO createdPizza = pizzaService.createPizza(pizzaDTO);
         String uri = ServletUriComponentsBuilder
             .fromCurrentContextPath()
@@ -59,7 +61,8 @@ public class PizzaController {
         @ApiResponse(responseCode = "422", description = "Unprocessable Entity.")
     })
     @PutMapping("/{pizzaId}")
-    public void updatePizza(@PathVariable Long pizzaId, @RequestBody PizzaDTO pizzaDTO, HttpServletResponse response) throws Exception {
+    public void updatePizza(@PathVariable Long pizzaId, @RequestBody PizzaDTO pizzaDTO, HttpServletResponse response)
+        throws NotFoundException, ValidationException {
         pizzaService.updatePizza(pizzaId, pizzaDTO);
     }
 
@@ -69,7 +72,7 @@ public class PizzaController {
         @ApiResponse(responseCode = "404", description = "Not found.")
     })
     @DeleteMapping("/{pizzaId}")
-    public void deletePizza(@PathVariable Long pizzaId, HttpServletResponse response) {
+    public void deletePizza(@PathVariable Long pizzaId, HttpServletResponse response) throws NotFoundException {
         pizzaService.deletePizza(pizzaId);
     }
 }

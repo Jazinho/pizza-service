@@ -36,7 +36,7 @@ public class PizzaServiceImpl implements PizzaService {
 
     @Override
     @Transactional
-    public PizzaDTO createPizza(PizzaDTO pizzaDTO) throws Exception {
+    public PizzaDTO createPizza(PizzaDTO pizzaDTO) throws NotFoundException, ValidationException {
         validatePizzaData(pizzaDTO);
         List<IngredientEntity> ingredientEntities = pizzaDTO.getIngredients().stream()
             .map(ingredientDTO -> new IngredientEntity(ingredientDTO.getId(), ingredientDTO.getName()))
@@ -51,7 +51,7 @@ public class PizzaServiceImpl implements PizzaService {
 
     @Override
     @Transactional
-    public void updatePizza(Long pizzaId, PizzaDTO pizzaDTO) throws Exception {
+    public void updatePizza(Long pizzaId, PizzaDTO pizzaDTO) throws NotFoundException, ValidationException {
         validatePizzaData(pizzaDTO);
         PizzaEntity pizzaEntity = pizzaRepository.findById(pizzaId)
             .orElseThrow(() -> new NotFoundException("Pizza with ID=" + pizzaId + " not found in Database"));
@@ -68,12 +68,16 @@ public class PizzaServiceImpl implements PizzaService {
 
     @Override
     @Transactional
-    public void deletePizza(Long pizzaId) {
-        pizzaIngredientRepository.deleteAllByPizzaId(pizzaId);
-        pizzaRepository.deleteById(pizzaId);
+    public void deletePizza(Long pizzaId) throws NotFoundException {
+        if (pizzaRepository.existsById(pizzaId)) {
+            pizzaIngredientRepository.deleteAllByPizzaId(pizzaId);
+            pizzaRepository.deleteById(pizzaId);
+        } else {
+            throw new NotFoundException("Pizza with ID=" + pizzaId + " not found in Database");
+        }
     }
 
-    private void validatePizzaData(PizzaDTO pizzaDto) throws Exception {
+    private void validatePizzaData(PizzaDTO pizzaDto) throws NotFoundException, ValidationException {
         if (pizzaDto.getIngredients().size() == 0)
             throw new ValidationException("Invalid data - pizza must have at least 1 ingredient");
         if (pizzaDto.getSize() <= 0)
