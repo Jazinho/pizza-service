@@ -19,7 +19,7 @@ public class PizzaController {
 
     private final PizzaService pizzaService;
 
-    public PizzaController(PizzaService pizzaService){
+    public PizzaController(PizzaService pizzaService) {
         this.pizzaService = pizzaService;
     }
 
@@ -39,7 +39,7 @@ public class PizzaController {
         @ApiResponse(responseCode = "422", description = "Unprocessable Entity.")
     })
     @PostMapping
-    public PizzaDTO createPizza(@RequestBody PizzaDTO pizzaDTO, HttpServletResponse response) {
+    public PizzaDTO createPizza(@RequestBody PizzaDTO pizzaDTO, HttpServletResponse response) throws Exception {
         PizzaDTO createdPizza = pizzaService.createPizza(pizzaDTO);
         String uri = ServletUriComponentsBuilder
             .fromCurrentContextPath()
@@ -59,8 +59,8 @@ public class PizzaController {
         @ApiResponse(responseCode = "422", description = "Unprocessable Entity.")
     })
     @PutMapping("/{pizzaId}")
-    public void updatePizza(@PathVariable Long pizzaId, @RequestBody PizzaDTO pizzaDTO, HttpServletResponse response) {
-        pizzaService.updatePizza(pizzaDTO);
+    public void updatePizza(@PathVariable Long pizzaId, @RequestBody PizzaDTO pizzaDTO, HttpServletResponse response) throws Exception {
+        pizzaService.updatePizza(pizzaId, pizzaDTO);
     }
 
     @Operation(summary = "Delete pizza.")

@@ -8,9 +8,9 @@ public interface PizzaService {
 
     Collection<PizzaDTO> getPizzas();
 
-    PizzaDTO createPizza(PizzaDTO pizzaDTO);
+    PizzaDTO createPizza(PizzaDTO pizzaDTO) throws Exception;
 
-    void updatePizza(PizzaDTO pizzaDTO);
+    void updatePizza(Long pizzaId, PizzaDTO pizzaDTO) throws Exception;
 
     void deletePizza(Long pizzaId);
 }

@@ -1,5 +1,6 @@
 package com.jpalucki.pizzaservice.rest;
 
+import com.fasterxml.jackson.core.type.*;
 import com.fasterxml.jackson.databind.*;
 import com.jpalucki.pizzaservice.*;
 import com.jpalucki.pizzaservice.repository.*;
@@ -19,9 +20,7 @@ import org.springframework.test.web.servlet.result.*;
 import javax.transaction.*;
 import java.util.*;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest(
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
@@ -76,7 +75,8 @@ public class PizzaControllerTests {
             .andExpect(MockMvcResultMatchers.status().isOk())
             .andReturn().getResponse().getContentAsString();
 
-        List<PizzaDTO> pizzaDTOs = mapper.readValue(result, List.class);
+        List<PizzaDTO> pizzaDTOs = mapper.readValue(result, new TypeReference<List<PizzaDTO>>() {
+        });
         assertEquals(pizzaDTOs.size(), 2);
         assertEquals(pizzaDTOs.get(0).getName(), createdPizzas.get(0).getName());
         assertEquals(pizzaDTOs.get(0).getSize(), createdPizzas.get(0).getSize());
@@ -125,7 +125,7 @@ public class PizzaControllerTests {
             .andExpect(MockMvcResultMatchers.status().isUnprocessableEntity())
             .andReturn().getResponse().getContentAsString();
 
-        assertEquals(result, "Invalid data - pizza name must have at least length of 4 characters");
+        assertEquals(result, "Invalid data - pizza name must have at least length of 1 characters");
     }
 
     @Test
@@ -165,13 +165,40 @@ public class PizzaControllerTests {
     }
 
     @Test
-    public void updatePizza_existing() throws Exception {
+    public void createPizza_someNewIngredients() throws Exception {
         //given
-        setupDB();
-        PizzaDTO pizzaToBeUpdated = new PizzaDTO(1L, "Updated Margharitta", 50, Lists.list(new IngredientDTO(1L, "Cheese")));
+        List<PizzaEntity> pizzas = setupDB();
+        Long existingIngredientId = pizzas.get(0).getIngredients().get(0).getId();
+        String existingIngredientName = pizzas.get(0).getIngredients().get(0).getName();
+        PizzaDTO pizzaToBeCreated = new PizzaDTO(null, "Some name", 30, Lists.list(
+            new IngredientDTO(existingIngredientId, existingIngredientName), new IngredientDTO(null, "Paprika")));
 
         // when
-        MockHttpServletRequestBuilder builder = MockMvcRequestBuilders.put("/pizzas/1")
+        MockHttpServletRequestBuilder builder = MockMvcRequestBuilders.post("/pizzas")
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(mapper.writeValueAsString(pizzaToBeCreated));
+
+        // then
+        String result = mockMvc.perform(builder)
+            .andExpect(MockMvcResultMatchers.status().isCreated())
+            .andReturn().getResponse().getContentAsString();
+
+        List<IngredientEntity> ingredients = (List<IngredientEntity>) ingredientRepository.findAll();
+        assertEquals(ingredients.size(), 4);
+    }
+
+    @Test
+    public void updatePizza_existing() throws Exception {
+        //given
+        List<PizzaEntity> pizzas = setupDB();
+        Long idToUpdate = pizzas.get(0).getId();
+        Long existingIngredientId = pizzas.get(0).getIngredients().get(0).getId();
+        String existingIngredientName = pizzas.get(0).getIngredients().get(0).getName();
+        PizzaDTO pizzaToBeUpdated = new PizzaDTO(idToUpdate, "Updated Margharitta", 50,
+            Lists.list(new IngredientDTO(existingIngredientId, existingIngredientName)));
+
+        // when
+        MockHttpServletRequestBuilder builder = MockMvcRequestBuilders.put("/pizzas/" + idToUpdate)
             .contentType(MediaType.APPLICATION_JSON)
             .content(mapper.writeValueAsString(pizzaToBeUpdated));
 
@@ -180,7 +207,7 @@ public class PizzaControllerTests {
             .andExpect(MockMvcResultMatchers.status().isOk())
             .andReturn();
 
-        PizzaEntity updatedPizza = pizzaRepository.findById(1L).get();
+        PizzaEntity updatedPizza = pizzaRepository.findById(idToUpdate).get();
         assertEquals(updatedPizza.getName(), "Updated Margharitta");
         assertEquals(updatedPizza.getSize(), 50);
         assertEquals(updatedPizza.getIngredients().size(), 1);
@@ -190,7 +217,7 @@ public class PizzaControllerTests {
     public void updatePizza_notExisting() throws Exception {
         //given
         setupDB();
-        PizzaDTO pizzaToBeUpdated = new PizzaDTO(5L, "Updated Margharitta", 50, Lists.list(new IngredientDTO(1L, "Cheese")));
+        PizzaDTO pizzaToBeUpdated = new PizzaDTO(null, "Updated Margharitta", 50, Lists.list(new IngredientDTO(1L, "Cheese")));
 
         // when
         MockHttpServletRequestBuilder builder = MockMvcRequestBuilders.put("/pizzas/1")
@@ -198,53 +225,137 @@ public class PizzaControllerTests {
             .content(mapper.writeValueAsString(pizzaToBeUpdated));
 
         // then
-        mockMvc.perform(builder)
-            .andExpect(MockMvcResultMatchers.status().isOk())
-            .andReturn();
+        String response = mockMvc.perform(builder)
+            .andExpect(MockMvcResultMatchers.status().isNotFound())
+            .andReturn().getResponse().getContentAsString();
+        assertEquals(response, "Pizza with ID=1 not found in Database");
+    }
 
-        PizzaEntity updatedPizza = pizzaRepository.findById(1L).get();
-        assertEquals(updatedPizza.getName(), "Updated Margharitta");
-        assertEquals(updatedPizza.getSize(), 50);
-        assertEquals(updatedPizza.getIngredients().size(), 1);
+    @Test
+    public void updatePizza_invalidName() throws Exception {
+        //given
+        PizzaDTO pizzaToBeCreated = new PizzaDTO(1L, "", 50, Lists.list(new IngredientDTO(1L, "Cheese")));
+
+        // when
+        MockHttpServletRequestBuilder builder = MockMvcRequestBuilders.put("/pizzas/1")
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(mapper.writeValueAsString(pizzaToBeCreated));
+
+        // then
+        String result = mockMvc.perform(builder)
+            .andExpect(MockMvcResultMatchers.status().isUnprocessableEntity())
+            .andReturn().getResponse().getContentAsString();
+
+        assertEquals(result, "Invalid data - pizza name must have at least length of 1 characters");
+    }
+
+    @Test
+    public void updatePizza_invalidSize() throws Exception {
+        //given
+        PizzaDTO pizzaToBeCreated = new PizzaDTO(1L, "Some name", 0, Lists.list(new IngredientDTO(1L, "Cheese")));
+
+        // when
+        MockHttpServletRequestBuilder builder = MockMvcRequestBuilders.put("/pizzas/1")
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(mapper.writeValueAsString(pizzaToBeCreated));
+
+        // then
+        String result = mockMvc.perform(builder)
+            .andExpect(MockMvcResultMatchers.status().isUnprocessableEntity())
+            .andReturn().getResponse().getContentAsString();
+
+        assertEquals(result, "Invalid data - pizza size must have positive number size");
+    }
+
+    @Test
+    public void updatePizza_invalidIngredients() throws Exception {
+        //given
+        PizzaDTO pizzaToBeCreated = new PizzaDTO(1L, "Some name", 40, Lists.list());
+
+        // when
+        MockHttpServletRequestBuilder builder = MockMvcRequestBuilders.put("/pizzas/1")
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(mapper.writeValueAsString(pizzaToBeCreated));
+
+        // then
+        String result = mockMvc.perform(builder)
+            .andExpect(MockMvcResultMatchers.status().isUnprocessableEntity())
+            .andReturn().getResponse().getContentAsString();
+
+        assertEquals(result, "Invalid data - pizza must have at least 1 ingredient");
+    }
+
+    @Test
+    public void updatePizza_someNewIngredients() throws Exception {
+        //given
+        List<PizzaEntity> pizzas = setupDB();
+        Long idToUpdate = pizzas.get(0).getId();
+        Long existingIngredientId = pizzas.get(0).getIngredients().get(0).getId();
+        String existingIngredientName = pizzas.get(0).getIngredients().get(0).getName();
+        PizzaDTO pizzaToBeUpdated = new PizzaDTO(idToUpdate, "Some name", 30, Lists.list(
+            new IngredientDTO(existingIngredientId, existingIngredientName), new IngredientDTO(null, "Paprika")));
+
+        // when
+        MockHttpServletRequestBuilder builder = MockMvcRequestBuilders.put("/pizzas/" + idToUpdate)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(mapper.writeValueAsString(pizzaToBeUpdated));
+
+        // then
+        String result = mockMvc.perform(builder)
+            .andExpect(MockMvcResultMatchers.status().isOk())
+            .andReturn().getResponse().getContentAsString();
+
+        List<IngredientEntity> ingredients = (List<IngredientEntity>) ingredientRepository.findAll();
+        assertEquals(ingredients.size(), 4);
     }
 
     @Test
     public void deletePizza() throws Exception {
         //given
-        setupDB();
+        List<PizzaEntity> pizzas = setupDB();
+        Long idToDelete = pizzas.get(0).getId();
 
         // when
-        MockHttpServletRequestBuilder builder = MockMvcRequestBuilders.delete("/pizzas/1");
+        MockHttpServletRequestBuilder builder = MockMvcRequestBuilders.delete("/pizzas/" + idToDelete);
 
         // then
         mockMvc.perform(builder)
             .andExpect(MockMvcResultMatchers.status().isOk())
             .andReturn();
 
-        assertFalse(pizzaRepository.existsById(1L));
+        assertFalse(pizzaRepository.existsById(idToDelete));
     }
 
-    private Iterable<PizzaEntity> setupDB(){
-        IngredientEntity cheese = new IngredientEntity(1L, "Cheese");
-        IngredientEntity herbs = new IngredientEntity(2L, "Herbs");
-        IngredientEntity mushrooms = new IngredientEntity(3L, "Mushrooms");
-        ingredientRepository.saveAll(Lists.list(cheese, herbs, mushrooms));
+    private List<PizzaEntity> setupDB() {
+        pizzaIngredientRepository.deleteAll();
+        ingredientRepository.deleteAll();
+        pizzaRepository.deleteAll();
+
+        IngredientEntity cheese = new IngredientEntity(null, "Cheese");
+        IngredientEntity herbs = new IngredientEntity(null, "Herbs");
+        IngredientEntity mushrooms = new IngredientEntity(null, "Mushrooms");
+        List<IngredientEntity> ingredientEntities = (List) ingredientRepository.saveAll(Lists.list(cheese, herbs, mushrooms));
 
         String name1 = "Margheritta";
         String name2 = "Funghi";
         Integer size1 = 40;
         Integer size2 = 30;
-        PizzaEntity pizza1 = new PizzaEntity(1L, name1, size1, Lists.list(cheese, herbs));
-        PizzaEntity pizza2 = new PizzaEntity(2L, name2, size2, Lists.list(cheese, herbs, mushrooms));
-        Iterable<PizzaEntity> pizzas = pizzaRepository.saveAll(Lists.list(pizza1, pizza2));
+        PizzaEntity pizza1 = new PizzaEntity(null, name1, size1, Lists.list(cheese, herbs));
+        PizzaEntity pizza2 = new PizzaEntity(null, name2, size2, Lists.list(cheese, herbs, mushrooms));
+        List<PizzaEntity> pizzas = (List) pizzaRepository.saveAll(Lists.list(pizza1, pizza2));
+        Long i1 = ingredientEntities.get(0).getId();
+        Long i2 = ingredientEntities.get(1).getId();
+        Long i3 = ingredientEntities.get(2).getId();
+        Long pizza1Id = pizzas.get(0).getId();
+        Long pizza2Id = pizzas.get(1).getId();
 
-        PizzaIngredientEntity p1i1 = new PizzaIngredientEntity(new PizzaIngredientKey(1L, 1L));
-        PizzaIngredientEntity p1i2 = new PizzaIngredientEntity(new PizzaIngredientKey(1L, 2L));
-        PizzaIngredientEntity p2i1 = new PizzaIngredientEntity(new PizzaIngredientKey(2L, 1L));
-        PizzaIngredientEntity p2i2 = new PizzaIngredientEntity(new PizzaIngredientKey(2L, 2L));
-        PizzaIngredientEntity p2i3 = new PizzaIngredientEntity(new PizzaIngredientKey(2L, 3L));
+        PizzaIngredientEntity p1i1 = new PizzaIngredientEntity(new PizzaIngredientKey(pizza1Id, i1));
+        PizzaIngredientEntity p1i2 = new PizzaIngredientEntity(new PizzaIngredientKey(pizza1Id, i2));
+        PizzaIngredientEntity p2i1 = new PizzaIngredientEntity(new PizzaIngredientKey(pizza2Id, i1));
+        PizzaIngredientEntity p2i2 = new PizzaIngredientEntity(new PizzaIngredientKey(pizza2Id, i2));
+        PizzaIngredientEntity p2i3 = new PizzaIngredientEntity(new PizzaIngredientKey(pizza2Id, i3));
         pizzaIngredientRepository.saveAll(Lists.list(p1i1, p1i2, p2i1, p2i2, p2i3));
-        
+
         return pizzas;
     }
 }
