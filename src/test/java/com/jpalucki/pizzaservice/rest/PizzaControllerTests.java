@@ -111,10 +111,64 @@ public class PizzaControllerTests {
     }
 
     @Test
-    public void updatePizza() throws Exception {
+    public void createPizza_invalidName() throws Exception {
+        //given
+        PizzaDTO pizzaToBeCreated = new PizzaDTO(null, "", 50, Lists.list(new IngredientDTO(1L, "Cheese")));
+
+        // when
+        MockHttpServletRequestBuilder builder = MockMvcRequestBuilders.post("/pizzas")
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(mapper.writeValueAsString(pizzaToBeCreated));
+
+        // then
+        String result = mockMvc.perform(builder)
+            .andExpect(MockMvcResultMatchers.status().isUnprocessableEntity())
+            .andReturn().getResponse().getContentAsString();
+
+        assertEquals(result, "Invalid data - pizza name must have at least length of 4 characters");
+    }
+
+    @Test
+    public void createPizza_invalidSize() throws Exception {
+        //given
+        PizzaDTO pizzaToBeCreated = new PizzaDTO(null, "Some name", 0, Lists.list(new IngredientDTO(1L, "Cheese")));
+
+        // when
+        MockHttpServletRequestBuilder builder = MockMvcRequestBuilders.post("/pizzas")
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(mapper.writeValueAsString(pizzaToBeCreated));
+
+        // then
+        String result = mockMvc.perform(builder)
+            .andExpect(MockMvcResultMatchers.status().isUnprocessableEntity())
+            .andReturn().getResponse().getContentAsString();
+
+        assertEquals(result, "Invalid data - pizza size must have positive number size");
+    }
+
+    @Test
+    public void createPizza_invalidIngredients() throws Exception {
+        //given
+        PizzaDTO pizzaToBeCreated = new PizzaDTO(null, "Some name", 40, Lists.list());
+
+        // when
+        MockHttpServletRequestBuilder builder = MockMvcRequestBuilders.post("/pizzas")
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(mapper.writeValueAsString(pizzaToBeCreated));
+
+        // then
+        String result = mockMvc.perform(builder)
+            .andExpect(MockMvcResultMatchers.status().isUnprocessableEntity())
+            .andReturn().getResponse().getContentAsString();
+
+        assertEquals(result, "Invalid data - pizza must have at least 1 ingredient");
+    }
+
+    @Test
+    public void updatePizza_existing() throws Exception {
         //given
         setupDB();
-        PizzaDTO pizzaToBeUpdated = new PizzaDTO(1L, "Updated Margharitta", 50, Lists.list());
+        PizzaDTO pizzaToBeUpdated = new PizzaDTO(1L, "Updated Margharitta", 50, Lists.list(new IngredientDTO(1L, "Cheese")));
 
         // when
         MockHttpServletRequestBuilder builder = MockMvcRequestBuilders.put("/pizzas/1")
@@ -129,7 +183,29 @@ public class PizzaControllerTests {
         PizzaEntity updatedPizza = pizzaRepository.findById(1L).get();
         assertEquals(updatedPizza.getName(), "Updated Margharitta");
         assertEquals(updatedPizza.getSize(), 50);
-        assertEquals(updatedPizza.getIngredients().size(), 0);
+        assertEquals(updatedPizza.getIngredients().size(), 1);
+    }
+
+    @Test
+    public void updatePizza_notExisting() throws Exception {
+        //given
+        setupDB();
+        PizzaDTO pizzaToBeUpdated = new PizzaDTO(5L, "Updated Margharitta", 50, Lists.list(new IngredientDTO(1L, "Cheese")));
+
+        // when
+        MockHttpServletRequestBuilder builder = MockMvcRequestBuilders.put("/pizzas/1")
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(mapper.writeValueAsString(pizzaToBeUpdated));
+
+        // then
+        mockMvc.perform(builder)
+            .andExpect(MockMvcResultMatchers.status().isOk())
+            .andReturn();
+
+        PizzaEntity updatedPizza = pizzaRepository.findById(1L).get();
+        assertEquals(updatedPizza.getName(), "Updated Margharitta");
+        assertEquals(updatedPizza.getSize(), 50);
+        assertEquals(updatedPizza.getIngredients().size(), 1);
     }
 
     @Test
